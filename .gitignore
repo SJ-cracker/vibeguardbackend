@@ -1,0 +1,56 @@
+# Dependencies
+node_modules
+
+# Next.js
+.next
+out
+
+# Build output
+dist
+build
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+.env.*
+
+# Prisma
+.prisma
+
+# Logs
+*.log
+
+# Coverage
+coverage
+
+# Turbo
+.turbo
+
+# Vercel
+.vercel
+
+# OS files
+.DS_Store
+Thumbs.db
+
+apps/backend/storage/scans/
+
+# Temporary / Scan / Test outputs
+recent-scans.json
+recent-utf8.json
+debug-utf8.json
+scan-debug.json
+scan-result.txt
+scan-results.txt
+test-status.txt
+*.zip
+test-upload/
+
+# Database / Prisma generated artifacts
+packages/database/prisma/dev.db
+packages/database/prisma/dev.db-journal
+packages/database/src/generated/
+packages/database/dist/
+

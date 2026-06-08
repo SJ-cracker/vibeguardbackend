@@ -1,0 +1,61 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../dist/generated/client"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("user") // owner, admin, developer, viewer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  scans     Scan[]
+}
+
+model Scan {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  status    String   // pending, running, complete, failed
+  vibeScore Int?
+  fileHash  String?  // NEW — SHA256 of uploaded file
+  repoProfile         String?  // JSON — detected stack, structure, dependencies
+  cicdYaml            String?  // Generated GitHub Actions workflow
+  cicdDockerfile      String?  // Generated Dockerfile (if missing)
+  architectureDiagram String?  // Mermaid diagram string
+  debugReport         String?  // JSON — patches and fix suggestions
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  findings  Finding[]
+}
+
+model Finding {
+  id                 String   @id @default(cuid())
+  scanId             String
+  scan               Scan     @relation(fields: [scanId], references: [id])
+  severity           String   // critical, high, medium, low, info
+  analyzer           String   // bug, security, api, deployment
+  title              String
+  description        String
+  cweId              String?
+  owaspCategory      String?
+  filePath           String
+  lineStart          Int
+  lineEnd            Int
+  codeSnippet        String
+  fixSuggestion      String
+  fixDiff            String?
+  effort             String   // quick, medium, complex
+  suppressed         Boolean  @default(false)
+  suppressionReason  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  @@unique([scanId, filePath, lineStart, lineEnd, title], name: "findingKey")
+}

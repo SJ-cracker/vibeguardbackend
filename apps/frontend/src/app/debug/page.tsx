@@ -1,0 +1,138 @@
+"use client";
+import { useEffect, useState } from 'react';
+import { DashboardLayout } from '../../components/DashboardLayout';
+import { api } from '../../services/api';
+import { Bug, ChevronDown, ChevronUp, Copy, Check, Wrench, Terminal } from 'lucide-react';
+
+const severityColors: Record<string, string> = {
+  critical: 'text-rose-400 bg-rose-400/10 border-rose-400/30',
+  high: 'text-orange-400 bg-orange-400/10 border-orange-400/30',
+  medium: 'text-amber-400 bg-amber-400/10 border-amber-400/30',
+  low: 'text-slate-400 bg-slate-400/10 border-slate-400/30',
+};
+
+export default function DebugPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const scansRes = await api.get('/v1/scans');
+        const latest = scansRes.data.find((s: any) => s.status === 'complete');
+        if (!latest) { setLoading(false); return; }
+        const res = await api.get(`/v1/scans/${latest.id}/debug`);
+        setData(res.data);
+      } catch (e) { console.error(e); }
+      finally { setLoading(false); }
+    }
+    load();
+  }, []);
+
+  const copy = async (text: string, id: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const patches = data?.report?.patches || [];
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
+            <Bug className="text-emerald-400" /> Auto-Debug Agent
+          </h2>
+          {data?.report && (
+            <div className="flex gap-4 mt-3">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                {data.report.autoFixable} Auto-fixable
+              </span>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                {data.report.manualRequired} Manual review
+              </span>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400">
+                {data.report.totalPatches} total patches
+              </span>
+            </div>
+          )}
+          {data?.report?.summary && (
+            <p className="text-slate-400 text-sm mt-3 leading-relaxed">{data.report.summary}</p>
+          )}
+        </div>
+
+        {loading && <p className="text-slate-500">Analyzing findings...</p>}
+        {!loading && patches.length === 0 && (
+          <p className="text-slate-500">No debug patches available. Upload a project to analyze.</p>
+        )}
+
+        <div className="space-y-4">
+          {patches.map((patch: any, idx: number) => (
+            <div key={idx} className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <button
+                onClick={() => setExpandedId(expandedId === idx.toString() ? null : idx.toString())}
+                className="w-full flex items-center gap-4 p-5 hover:bg-slate-800/50 transition-colors text-left"
+              >
+                <span className={`shrink-0 px-2 py-1 rounded-lg border text-xs font-bold uppercase ${severityColors[patch.severity]}`}>
+                  {patch.severity}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm">{patch.title}</p>
+                  <p className="text-slate-500 text-xs font-mono mt-0.5">{patch.filePath}:{patch.lineStart}</p>
+                </div>
+                <span className="text-xs text-slate-600 font-mono shrink-0">{patch.ruleId}</span>
+                {expandedId === idx.toString()
+                  ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                }
+              </button>
+
+              {expandedId === idx.toString() && (
+                <div className="border-t border-slate-800 p-5 space-y-4">
+                  <p className="text-slate-300 text-sm leading-relaxed">{patch.explanation}</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-rose-400 mb-2">❌ Before (Vulnerable)</p>
+                      <pre className="p-3 rounded-xl bg-rose-950/20 border border-rose-500/20 text-xs font-mono text-rose-200 overflow-x-auto whitespace-pre-wrap">{patch.before}</pre>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">✅ After (Fixed)</p>
+                        <button
+                          onClick={() => copy(patch.after, `after-${idx}`)}
+                          className="flex items-center gap-1 text-xs text-slate-500 hover:text-white transition-colors"
+                        >
+                          {copied === `after-${idx}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          Copy
+                        </button>
+                      </div>
+                      <pre className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-xs font-mono text-emerald-200 overflow-x-auto whitespace-pre-wrap">{patch.after}</pre>
+                    </div>
+                  </div>
+
+                  {patch.command && (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2 mb-2">
+                        <Terminal className="w-3 h-3" /> Run this command
+                      </p>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800 border border-slate-700">
+                        <code className="text-xs font-mono text-amber-300">{patch.command}</code>
+                        <button onClick={() => copy(patch.command, `cmd-${idx}`)} className="text-slate-500 hover:text-white transition-colors ml-3">
+                          {copied === `cmd-${idx}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
