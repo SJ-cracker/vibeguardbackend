@@ -27,8 +27,16 @@ fastify.get('/v1/health', async function handler (request, reply) {
   return { status: 'ok', service: 'vibeguard-backend' }
 })
 
+import { execSync } from 'child_process'
+
 const start = async () => {
   try {
+    console.log('[Server] Syncing database schema...');
+    try {
+      execSync('npx prisma db push --schema=packages/database/prisma/schema.prisma', { stdio: 'inherit' });
+    } catch (dbErr) {
+      console.error('[Server] Database schema push warning:', dbErr);
+    }
     await ensureStorageDirs();
     await fastify.listen({ port: 3001, host: '0.0.0.0' })
   } catch (err) {
