@@ -28,12 +28,18 @@ fastify.get('/v1/health', async function handler (request, reply) {
 })
 
 import { execSync } from 'child_process'
+import path from 'path'
 
 const start = async () => {
   try {
     console.log('[Server] Syncing database schema...');
     try {
-      execSync('npx prisma db push --schema=packages/database/prisma/schema.prisma', { stdio: 'inherit' });
+      const dbUrl = process.env.DATABASE_URL || 'file:' + path.resolve(__dirname, '../../../packages/database/prisma/dev.db');
+      console.log('[Server] Using database URL for push:', dbUrl);
+      execSync('npx prisma db push --schema=packages/database/prisma/schema.prisma', {
+        env: { ...process.env, DATABASE_URL: dbUrl },
+        stdio: 'inherit'
+      });
     } catch (dbErr) {
       console.error('[Server] Database schema push warning:', dbErr);
     }
