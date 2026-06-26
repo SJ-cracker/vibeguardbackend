@@ -383,6 +383,7 @@ export class StaticAnalyzer {
           const codeSnippetWithContext = lines.slice(contextStart, contextEnd + 1).join('\n');
 
           findings.push({
+            ruleId: rule.id,
             severity: rule.severity,
             analyzer: rule.analyzer,
             title: rule.title,

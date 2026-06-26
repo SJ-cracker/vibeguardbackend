@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { api } from '../../services/api';
 import { Zap, ChevronDown, ChevronUp, ExternalLink, Wrench, AlertTriangle, Code, Shield } from 'lucide-react';
@@ -11,7 +12,10 @@ const severityColors: Record<string, string> = {
   low: 'text-slate-400 bg-slate-400/10 border-slate-400/30',
 };
 
-export default function ApiRisk() {
+function ApiRiskContent() {
+  const searchParams = useSearchParams();
+  const queryScanId = searchParams.get('scanId');
+
   const [findings, setFindings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -20,20 +24,23 @@ export default function ApiRisk() {
   useEffect(() => {
     async function load() {
       try {
-        const scansRes = await api.get('/v1/scans');
-        const scans = scansRes.data;
-        if (!scans || scans.length === 0) { setLoading(false); return; }
+        setLoading(true);
+        let scanIdToUse = queryScanId;
+        if (!scanIdToUse) {
+          const scansRes = await api.get('/v1/scans');
+          const scans = scansRes.data;
+          if (!scans || scans.length === 0) { setLoading(false); return; }
+          const latest = scans.find((s: any) => s.status === 'complete') || scans[0];
+          scanIdToUse = latest.id;
+        }
+
+        const scanRes = await api.get(`/v1/scans/${scanIdToUse}`);
+        setScanInfo(scanRes.data);
   
-        // Get the most recent COMPLETE scan
-        const latest = scans.find((s: any) => s.status === 'complete') || scans[0];
-        setScanInfo(latest);
-  
-        const scanRes = await api.get(`/v1/scans/${latest.id}`);
         const allFindings = scanRes.data.findings || [];
   
         console.log('All findings analyzers:', allFindings.map((f: any) => f.analyzer));
   
-        // Try multiple possible values for the api analyzer field
         const apiFindings = allFindings.filter((f: any) =>
           f.analyzer === 'api' ||
           f.analyzer === 'apiRisk' ||
@@ -50,7 +57,7 @@ export default function ApiRisk() {
       }
     }
     load();
-  }, []);
+  }, [queryScanId]);
 
   const toggle = (id: string) => setExpandedId(expandedId === id ? null : id);
 
@@ -162,5 +169,19 @@ export default function ApiRisk() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function ApiRisk() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="h-full flex flex-col items-center justify-center p-20 animate-pulse">
+          <p className="text-slate-500 uppercase tracking-widest text-xs font-bold">Loading API Risks...</p>
+        </div>
+      </DashboardLayout>
+    }>
+      <ApiRiskContent />
+    </Suspense>
   );
 }

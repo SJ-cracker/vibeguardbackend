@@ -27,12 +27,12 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, scanId }) => 
 
         <nav className="flex-1 px-4 space-y-2 py-4">
           <NavItem href={scanId ? `/dashboard/${scanId}` : '/'} pathname={pathname} icon={<LayoutDashboard />} label="Dashboard" />
-          <NavItem href="/scans" pathname={pathname} icon={<History />} label="Recent Scans" />
-          <NavItem href="/api-risk" pathname={pathname} icon={<Zap />} label="API Risk" />
-          <NavItem href="/docs" pathname={pathname} icon={<BookOpen />} label="Docs" />
-          <NavItem icon={<GitBranch />} label="CI/CD Pipeline" href="/cicd" pathname={pathname} />
-          <NavItem icon={<Network />} label="Architecture" href="/diagram" pathname={pathname} />
-          <NavItem icon={<Bug />} label="Auto-Debug" href="/debug" pathname={pathname} />
+          <NavItem href={scanId ? `/scans?scanId=${scanId}` : '/scans'} pathname={pathname} icon={<History />} label="Recent Scans" />
+          <NavItem href={scanId ? `/api-risk?scanId=${scanId}` : '/api-risk'} pathname={pathname} icon={<Zap />} label="API Risk" />
+          <NavItem href={scanId ? `/docs?scanId=${scanId}` : '/docs'} pathname={pathname} icon={<BookOpen />} label="Docs" />
+          <NavItem icon={<GitBranch />} label="CI/CD Pipeline" href={scanId ? `/cicd?scanId=${scanId}` : '/cicd'} pathname={pathname} />
+          <NavItem icon={<Network />} label="Architecture" href={scanId ? `/diagram?scanId=${scanId}` : '/diagram'} pathname={pathname} />
+          <NavItem icon={<Bug />} label="Auto-Debug" href={scanId ? `/debug?scanId=${scanId}` : '/debug'} pathname={pathname} />
         </nav>
 
         <div className="p-6 mt-auto">
@@ -73,7 +73,8 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, scanId }) => 
 };
 
 const NavItem = ({ icon, label, href, pathname }: { icon: any, label: string, href: string, pathname: string | null }) => {
-  const active = pathname === href || (href !== '/' && pathname?.startsWith(href));
+  const baseHref = href.split('?')[0];
+  const active = pathname === baseHref || (baseHref !== '/' && pathname?.startsWith(baseHref));
   
   return (
     <Link href={href}>

@@ -3,10 +3,10 @@ import Groq from 'groq-sdk';
 const MODEL = process.env.GROQ_MODEL || 'llama3-70b-8192';
 
 // Lazy client — instantiated only when the API key is present
-function getClient(): Groq {
+function getClient(): Groq | null {
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey || apiKey === 'your_groq_api_key_here') {
-    throw new Error('GROQ_API_KEY is not configured. Set it in apps/backend/.env');
+  if (!apiKey || apiKey === 'your_groq_api_key_here' || apiKey.trim() === '') {
+    return null;
   }
   return new Groq({ apiKey });
 }
@@ -21,6 +21,9 @@ export async function generateFixSuggestion(finding: {
   cweId?: string;
 }): Promise<string> {
   const groq = getClient();
+  if (!groq) {
+    return "AI-suggested remediation details are currently offline. Please configure a valid GROQ_API_KEY in the backend environment variables to enable LLM suggestions.";
+  }
   const chat = await groq.chat.completions.create({
     model: MODEL,
     messages: [
@@ -59,6 +62,9 @@ export async function generateScanSummary(scan: {
   findings: { title: string; severity: string; filePath: string }[];
 }): Promise<string> {
   const groq = getClient();
+  if (!groq) {
+    return `Scan completed successfully using local AST engine. VibeScore stands at ${scan.vibeScore}/100 with ${scan.totalFindings} findings detected. Configure GROQ_API_KEY in your environment to enable dynamic LLM summary reports.`;
+  }
   const chat = await groq.chat.completions.create({
     model: MODEL,
     messages: [
@@ -90,6 +96,9 @@ export async function chatWithCodebase(
   }
 ): Promise<string> {
   const groq = getClient();
+  if (!groq) {
+    return "AI Chat with codebase is currently offline. Please configure a valid GROQ_API_KEY in the backend environment variables to enable LLM context conversations.";
+  }
   const chat = await groq.chat.completions.create({
     model: MODEL,
     messages: [

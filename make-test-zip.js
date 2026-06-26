@@ -5,6 +5,7 @@ zip.addFile('vulnerable.js', Buffer.from([
   'eval(userInput);',
   'const hash = Math.random();',
   'console.log(password);',
+  `// Run timestamp: ${Date.now()}`,
 ].join('\n')));
 zip.writeZip('./test-fresh.zip');
 console.log('Created test-fresh.zip');

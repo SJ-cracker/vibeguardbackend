@@ -1,28 +1,42 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { api } from '../../services/api';
 import { GitBranch, Copy, Check, Download, Terminal } from 'lucide-react';
 
-export default function CICDPage() {
+function CICDContent() {
+  const searchParams = useSearchParams();
+  const queryScanId = searchParams.get('scanId');
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'workflow' | 'dockerfile'>('workflow');
+  const [resolvedScanId, setResolvedScanId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const scansRes = await api.get('/v1/scans');
-        const latest = scansRes.data.find((s: any) => s.status === 'complete');
-        if (!latest) { setLoading(false); return; }
-        const res = await api.get(`/v1/scans/${latest.id}/cicd`);
+        setLoading(true);
+        let scanIdToUse = queryScanId;
+        if (!scanIdToUse) {
+          const scansRes = await api.get('/v1/scans');
+          const latest = scansRes.data.find((s: any) => s.status === 'complete');
+          if (!latest) { setLoading(false); return; }
+          scanIdToUse = latest.id;
+        }
+        setResolvedScanId(scanIdToUse);
+        const res = await api.get(`/v1/scans/${scanIdToUse}/cicd`);
         setData(res.data);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, []);
+  }, [queryScanId]);
 
   const copy = async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -40,7 +54,7 @@ export default function CICDPage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout scanId={resolvedScanId || undefined}>
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
@@ -120,5 +134,19 @@ export default function CICDPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function CICDPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="h-full flex flex-col items-center justify-center p-20 animate-pulse">
+          <p className="text-slate-500 uppercase tracking-widest text-xs font-bold">Loading CI/CD Pipeline...</p>
+        </div>
+      </DashboardLayout>
+    }>
+      <CICDContent />
+    </Suspense>
   );
 }

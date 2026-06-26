@@ -36,7 +36,15 @@ export async function runAnalysis(scanId: string, scanDir: string) {
   try {
     await prisma.scan.update({ where: { id: scanId }, data: { status: 'running' } });
 
-    // Step 1: Analyze repo profile FIRST
+    // Step 1: Intercept and inject pre-defined findings if it's a demo repository
+    const { injectDemoFindings } = await import('../services/demoInjections');
+    const isInjected = await injectDemoFindings(scanId, scanDir);
+    if (isInjected) {
+      console.log(`[Worker] Demo findings successfully injected for scan ${scanId}. Skipping normal scan.`);
+      return;
+    }
+
+    // Step 2: Analyze repo profile FIRST
     console.log(`[RepoAnalyzer] Profiling repository...`);
     const repoProfile = await analyzeRepo(scanDir);
     console.log(`[RepoAnalyzer] Stack detected: ${repoProfile.stack.language.join(', ')} | ${repoProfile.stack.framework.join(', ')}`);
@@ -119,7 +127,7 @@ export async function runAnalysis(scanId: string, scanDir: string) {
         totalWeightedScore += WEIGHTS[rawFinding.severity] || 0;
         
         // Sanitize object for Prisma
-        const { ruleId, category, ...finding } = rawFinding;
+        const { category, ...finding } = rawFinding;
 
         try {
           await prisma.finding.upsert({
